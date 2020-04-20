@@ -1,0 +1,25 @@
+{
+  "name": "profiles",
+  "version": "1.0.0",
+  "description": "Microservice Profiles for Forum",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "author": "Rostyslav Rachynskiy",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "bcrypt": "^4.0.1",
+    "body-parser": "^1.19.0",
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "morgan": "^1.10.0",
+    "mysql2": "^2.1.0",
+    "request": "^2.88.2"
+  },
+  "devDependencies": {
+    "dotenv": "^8.2.0"
+  }
+}
