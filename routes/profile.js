@@ -1,5 +1,7 @@
 const router = require('express').Router();
 const bcrypt = require('bcrypt');
+const { promisify } = require('util');
+const request = promisify(require('request'));
 
 router.get('/:id', async (req, res, next) => {
     const id = +req.params.id;
@@ -10,9 +12,13 @@ router.get('/:id', async (req, res, next) => {
     }
     try {
         const user = (await req.con.execute("SELECT id, email, user_name, first_name, last_name, profile_image, signature, banned FROM user WHERE id=?", [id]))[0][0];
+        const image = await request({
+            uri: `http://localhost:3001/${user.profile_image}`,
+            method: 'GET'
+        });
         res.status(200).json({
             ...user,
-            profile_image: 234 // get from image service
+            profile_image: `http://localhost:3001/uploads/${JSON.parse(image.body).uri}`
         });
     } catch (err) {
         console.log(err);
@@ -20,17 +26,35 @@ router.get('/:id', async (req, res, next) => {
     }
 });
 
-router.get('/', async (req, res, next) => {
+router.get('/:quantity/:page', async (req, res, next) => {
     try {
-        const users = (await req.con.execute("SELECT id, email, user_name, first_name, last_name, profile_image, signature, banned FROM user"))[0];
-        const usersImages = users.map(user => {
+        const quantity = +req.params.quantity;
+        const page = +req.params.page;
+        if (!quantity || !page || page < 1 || quantity < 1) {
+            const error = new Error('Invalid quantity or page');
+            error.status = 400;
+            return next(error);
+        }
+        const users = (await req.con.execute("SELECT id, email, user_name, first_name, last_name, profile_image, signature, banned FROM user ORDER BY user_name ASC LIMIT ?, ?",
+            [
+                quantity * (page - 1),
+                quantity
+            ]))[0];
+
+        const usersImages = await Promise.all(users.map(async user => {
+            const image = await request({
+                uri: `http://localhost:3001/${user.profile_image}`,
+                method: 'GET'
+            });
             return {
                 ...user,
-                profile_image: 5 // get from image service
+                profile_image: (image.statusCode === 200 ? ('http://localhost:3001/uploads/' + JSON.parse(image.body).uri) : null)
             }
-        })
+        }));
+        const quantityUsers = await req.con.execute("SELECT COUNT(1) FROM user");
         res.status(200).json({
-            ...usersImages
+            count: quantityUsers[0][0]['COUNT(1)'],
+            users: { ...usersImages }
         });
     } catch (err) {
         console.log(err);
@@ -66,7 +90,7 @@ router.post('/', async (req, res, next) => {
     }
 });
 
-router.patch('/:id', async (req, res, next) => {
+router.put('/:id', async (req, res, next) => {
     const id = +req.params.id;
     const email = req.body.email;
     const password = req.body.password;
@@ -80,24 +104,24 @@ router.patch('/:id', async (req, res, next) => {
         error.status = 400;
         return next(error);
     }
-    if(!email || !password || !userName || !firstName || !lastName || !profileImage || !signature) {
+    if (!email || !password || !userName || !firstName || !lastName || !profileImage || !signature) {
         const error = new Error('Fields not provided');
         error.status = 400;
         return next(error);
     }
     const hashedPass = await bcrypt.hash(password, 12);
     try {
-        await req.con.execute("UPDATE user SET email=?, password=?, user_name=?, first_name=?, last_name=?, profile_image=?, signature=? WHERE id=?", 
-        [
-            email,
-            hashedPass,
-            userName,
-            firstName,
-            lastName,
-            profileImage,
-            signature,
-            id
-        ]);
+        await req.con.execute("UPDATE user SET email=?, password=?, user_name=?, first_name=?, last_name=?, profile_image=?, signature=? WHERE id=?",
+            [
+                email,
+                hashedPass,
+                userName,
+                firstName,
+                lastName,
+                profileImage,
+                signature,
+                id
+            ]);
         res.status(200).json({
             message: "User edited"
         });
@@ -107,8 +131,46 @@ router.patch('/:id', async (req, res, next) => {
     }
 });
 
-router.delete('/:id', (req, res, next) => {
+router.delete('/:id', async (req, res, next) => {
+    const id = +req.params.id;
+    if (isNaN(id) || id < 0) {
+        const error = new Error('Invalid profile ID');
+        error.status = 400;
+        return next(error);
+    }
+    try {
+        const dUser = await req.con.execute("DELETE FROM user WHERE id=?", [id]);
+        if (dUser[0].affectedRows === 0) {
+            const error = new Error('Not user with this ID');
+            error.status = 400;
+            return next(error);
+        }
+        res.status(200).json({
+            message: "User deleted!"
+        });
+    } catch (err) {
+        next(new Error('Failed to delete user'))
+    }
+});
 
+router.put('/ban/:set/:id', async (req, res, next) => {
+    const set = +req.params.set;
+    const id = +req.params.id;
+    if(isNaN(id) || id < 0 || isNaN(set)) {
+        const error = new Error('Invalid params');
+        error.status = 400;
+        return next(error);
+    }
+    try {
+        await req.con.execute("UPDATE user SET banned=? WHERE id=?", [set, id]);
+        res.status(200).json({
+            message: 'User banned or unbanned',
+            id
+        });
+    } catch(err) {
+        console.log(err);
+        next(new Error('Failed to ban user'));
+    }
 });
 
 module.exports = router;
