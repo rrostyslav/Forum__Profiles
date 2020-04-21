@@ -3,15 +3,15 @@ const { promisify } = require('util');
 const request = promisify(require('request'));
 
 
-exports.getProfileById = async (req, res, next) => {
-    const id = +req.params.id;
-    if (isNaN(id) || id < 0) {
-        const error = new Error('Invalid profile ID');
+exports.getProfileByUserName = async (req, res, next) => {
+    const userName = req.params.username;
+    if (!userName) {
+        const error = new Error('No params');
         error.status = 400;
         return next(error);
     }
     try {
-        const user = (await req.con.execute("SELECT * FROM user WHERE id=?", [id]))[0][0];
+        const user = (await req.con.execute("SELECT * FROM user WHERE user_name=?", [userName]))[0][0];
         const image = await request({
             uri: `http://localhost:3001/${user.profile_image}`,
             method: 'GET'

@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const ProfileController = require('../controllers/profile');
 
-router.get('/:id', ProfileController.getProfileById);
+router.get('/:username', ProfileController.getProfileByUserName);
 
 router.get('/:quantity/:page', ProfileController.getAllProfiles);
 
