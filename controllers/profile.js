@@ -1,3 +1,8 @@
+const bcrypt = require('bcrypt');
+const { promisify } = require('util');
+const request = promisify(require('request'));
+
+
 exports.getProfileById = async (req, res, next) => {
     const id = +req.params.id;
     if (isNaN(id) || id < 0) {

@@ -1,8 +1,4 @@
 const router = require('express').Router();
-const bcrypt = require('bcrypt');
-const { promisify } = require('util');
-const request = promisify(require('request'));
-
 const ProfileController = require('../controllers/profile');
 
 router.get('/:id', ProfileController.getProfileById);
