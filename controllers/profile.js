@@ -11,7 +11,7 @@ exports.getProfileById = async (req, res, next) => {
         return next(error);
     }
     try {
-        const user = (await req.con.execute("SELECT id, email, user_name, first_name, last_name, profile_image, signature, banned FROM user WHERE id=?", [id]))[0][0];
+        const user = (await req.con.execute("SELECT * FROM user WHERE id=?", [id]))[0][0];
         const image = await request({
             uri: `http://localhost:3001/${user.profile_image}`,
             method: 'GET'
@@ -35,7 +35,7 @@ exports.getAllProfiles = async (req, res, next) => {
             error.status = 400;
             return next(error);
         }
-        const users = (await req.con.execute("SELECT id, email, user_name, first_name, last_name, profile_image, signature, banned FROM user ORDER BY user_name ASC LIMIT ?, ?",
+        const users = (await req.con.execute("SELECT * FROM user ORDER BY user_name ASC LIMIT ?, ?",
             [
                 quantity * (page - 1),
                 quantity
